@@ -6,15 +6,15 @@ const path = require('path');
 
 const app = express();
 
-// Middleware
+// Express
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Serve static files from the 'public' folder
+// use files from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PostgreSQL Connection Pool using .env variables
+// PostgreSQL Connection 
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -23,7 +23,7 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-// Test Database Connection
+
 pool.connect((err, client, release) => {
   if (err) {
     return console.error('Error acquiring client', err.stack);
@@ -32,9 +32,9 @@ pool.connect((err, client, release) => {
   release();
 });
 
-// --- API ROUTES ---
 
-// 1. GET Stats for Dashboard Cards
+
+// 1. GET Stats 
 app.get('/api/stats', async (req, res) => {
   try {
     const totalResult = await pool.query('SELECT COUNT(*) FROM issues');
@@ -51,7 +51,7 @@ app.get('/api/stats', async (req, res) => {
   }
 });
 
-// 2. POST a New Issue
+// POST a New Issue
 app.post('/api/report', async (req, res) => {
   const { category, description } = req.body;
   try {
@@ -66,7 +66,7 @@ app.post('/api/report', async (req, res) => {
   }
 });
 
-// 3. GET Issues by Category (For the count numbers on cards)
+// GET Issues by Category (For the count numbers on cards)
 app.get('/api/category-counts', async (req, res) => {
   try {
     const result = await pool.query('SELECT category, COUNT(*) FROM issues GROUP BY category');
