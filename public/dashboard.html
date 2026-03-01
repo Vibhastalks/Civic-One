@@ -1,186 +1,64 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>CivicOne | Dashboard</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
-  <link rel="stylesheet" href="dashboard.css">
+    <meta charset="UTF-8">
+    <title>CivicOne | Citizen Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 </head>
-<body>
+<body class="bg-light">
+    <div class="container py-5">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1 class="fw-bold">Citizen Dashboard</h1>
+            <a href="index.html" class="btn btn-outline-secondary">Back to Home</a>
+        </div>
 
-  <div class="header-icons">
-    <i class="bi bi-bell fs-4 me-3"></i>
-    <i class="bi bi-person-circle fs-4"></i>
-  </div>
-
-  <div class="container py-4">
-    <div class="mb-4">
-      <h1 class="fw-bold mb-1">CivicOne</h1>
-      <p class="text-muted small mb-0">Report and track civic problems</p>
+        <div class="card shadow-sm p-4">
+            <h5 class="mb-3">Report a New Issue</h5>
+            <form id="reportForm">
+                <div class="mb-3">
+                    <label class="form-label">Category</label>
+                    <select id="reportCategory" class="form-select" required>
+                        <option value="Water Supply">Water Supply</option>
+                        <option value="Roads & Infrastructure">Roads & Infrastructure</option>
+                        <option value="Electricity">Electricity</option>
+                        <option value="Waste Management">Waste Management</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea id="reportDesc" class="form-control" rows="3" required></textarea>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Upload Photo Evidence</label>
+                    <input type="file" id="reportImage" class="form-control" accept="image/*">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Submit Report</button>
+            </form>
+        </div>
     </div>
 
-    <div class="row g-3 mb-4 text-center">
-      <div class="col-12 col-md-4">
-        <div class="stats-card">
-          <h6>Total Issues</h6>
-          <h2 id="total-issues">0</h2>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="stats-card">
-          <h6>Resolved</h6>
-          <h2 id="resolved-issues" class="text-success">0</h2>
-        </div>
-      </div>
-      <div class="col-12 col-md-4">
-        <div class="stats-card">
-          <h6>Pending</h6>
-          <h2 id="pending-issues" class="text-danger">0</h2>
-        </div>
-      </div>
-    </div>
+    <script>
+        document.getElementById('reportForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData();
+            formData.append('category', document.getElementById('reportCategory').value);
+            formData.append('description', document.getElementById('reportDesc').value);
+            
+            const imageFile = document.getElementById('reportImage').files[0];
+            if(imageFile) formData.append('image', imageFile);
 
-    <div class="d-flex flex-column flex-md-row justify-content-between align-items-center mb-4">
-      <h2 class="h4 mb-0">Issue Categories</h2>
-      <button class="report-btn mt-2 mt-md-0" data-bs-toggle="modal" data-bs-target="#reportModal">+ Report New Issue</button>
-    </div>
+            const res = await fetch('/api/report', {
+                method: 'POST',
+                body: formData 
+            });
 
-    <div class="row g-4">
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Roads & Infrastructure')">
-          <div class="icon">🛣</div>
-          <h5>Roads & Infrastructure</h5>
-          <p>Potholes, damaged roads, broken sidewalks</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Water Supply')">
-          <div class="icon">💧</div>
-          <h5>Water Supply</h5>
-          <p>Leakage, low pressure, contamination</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Electricity')">
-          <div class="icon">💡</div>
-          <h5>Electricity</h5>
-          <p>Power cuts, street lights, wiring hazards</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Waste Management')">
-          <div class="icon">♻</div>
-          <h5>Waste Management</h5>
-          <p>Garbage collection, illegal dumping</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Public Safety')">
-          <div class="icon">🚨</div>
-          <h5>Public Safety</h5>
-          <p>Broken public property, unsafe streets</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Environment')">
-          <div class="icon">🌳</div>
-          <h5>Environment</h5>
-          <p>Tree cutting, pollution, illegal construction</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Public Transport')">
-          <div class="icon">🚇</div>
-          <h5>Public Transport</h5>
-          <p>Bus delays, station maintenance</p>
-        </div>
-      </div>
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="issue-card" onclick="openReportModal('Other')">
-          <div class="icon">📋</div>
-          <h5>Other</h5>
-          <p>Miscellaneous issues not covered above</p>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="modal fade" id="reportModal" tabindex="-1">
-    <div class="modal-dialog modal-dialog-centered">
-      <div class="modal-content border-0 shadow" style="border-radius: 20px;">
-        <div class="modal-header border-0">
-          <h5 class="modal-title fw-bold">Report New Issue</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-        </div>
-        <div class="modal-body">
-          <form id="reportForm">
-            <div class="mb-3">
-              <label class="form-label">Category</label>
-              <select id="reportCategory" class="form-select" required>
-                <option value="Roads & Infrastructure">Roads & Infrastructure</option>
-                <option value="Water Supply">Water Supply</option>
-                <option value="Electricity">Electricity</option>
-                <option value="Waste Management">Waste Management</option>
-                <option value="Public Safety">Public Safety</option>
-                <option value="Environment">Environment</option>
-                <option value="Public Transport">Public Transport</option>
-                <option value="Other">Other</option>
-              </select>
-            </div>
-            <div class="mb-3">
-              <label class="form-label">Description</label>
-              <textarea id="reportDesc" class="form-control" rows="3" required placeholder="Describe the problem..."></textarea>
-            </div>
-            <button type="submit" class="report-btn w-100">Submit Report</button>
-          </form>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <footer class="text-center py-4 mt-5">
-    <p class="text-muted small">&copy; 2026 CivicOne. Empowering communities.</p>
-  </footer>
-
-  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
-  <script>
-    async function updateStats() {
-      try {
-        const res = await fetch('/api/stats');
-        const data = await res.json();
-        document.getElementById('total-issues').innerText = data.total;
-        document.getElementById('resolved-issues').innerText = data.resolved;
-        document.getElementById('pending-issues').innerText = data.pending;
-      } catch (err) { console.error("Stats Error:", err); }
-    }
-
-    document.getElementById('reportForm').onsubmit = async (e) => {
-      e.preventDefault();
-      const payload = {
-        category: document.getElementById('reportCategory').value,
-        description: document.getElementById('reportDesc').value
-      };
-
-      const res = await fetch('/api/report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-
-      if(res.ok) {
-        alert('Thank you! Issue reported.');
-        location.reload();
-      }
-    };
-
-    function openReportModal(category) {
-      document.getElementById('reportCategory').value = category;
-      new bootstrap.Modal(document.getElementById('reportModal')).show();
-    }
-
-    updateStats();
-  </script>
+            if(res.ok) {
+                alert('Thank you! Your report has been submitted.');
+                location.reload();
+            }
+        };
+    </script>
 </body>
 </html>
