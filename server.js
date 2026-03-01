@@ -3,18 +3,38 @@ const express = require('express');
 const { Pool } = require('pg');
 const cors = require('cors');
 const path = require('path');
+const multer = require('multer');
+const fs = require('fs');
 
 const app = express();
 
-// Express
+// --- 1. DIRECTORY SETUP ---
+// This block prevents the "ENOENT: no such file or directory" error by creating the folder at startup
+const uploadDir = path.join(__dirname, 'public', 'uploads');
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log('Success: Created missing directory at:', uploadDir);
+}
+
+// --- 2. MIDDLEWARE ---
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
-// use files from the 'public' folder
 app.use(express.static(path.join(__dirname, 'public')));
 
-// PostgreSQL Connection 
+// --- 3. MULTER CONFIGURATION ---
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'public/uploads/'); 
+  },
+  filename: (req, file, cb) => {
+    // Generates a unique name: timestamp-originalfilename.jpg
+    cb(null, Date.now() + '-' + file.originalname);
+  }
+});
+const upload = multer({ storage: storage });
+
+// --- 4. DATABASE CONNECTION ---
 const pool = new Pool({
   user: process.env.DB_USER,
   host: process.env.DB_HOST,
@@ -23,67 +43,85 @@ const pool = new Pool({
   port: process.env.DB_PORT || 5432,
 });
 
-
 pool.connect((err, client, release) => {
   if (err) {
-    return console.error('Error acquiring client', err.stack);
+    return console.error('Database connection error:', err.stack);
   }
-  console.log('Successfully connected to PostgreSQL');
+  console.log('CivicOne Database connected successfully');
   release();
 });
 
+// --- 5. ROUTES ---
 
-
-// 1. GET Stats 
-app.get('/api/stats', async (req, res) => {
-  try {
-    const totalResult = await pool.query('SELECT COUNT(*) FROM issues');
-    const resolvedResult = await pool.query("SELECT COUNT(*) FROM issues WHERE status = 'Resolved'");
-    
-    const total = parseInt(totalResult.rows[0].count);
-    const resolved = parseInt(resolvedResult.rows[0].count);
-    const pending = total - resolved;
-
-    res.json({ total, resolved, pending });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error while fetching stats' });
-  }
+// Main Landing Page
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// POST a New Issue
-app.post('/api/report', async (req, res) => {
+// CITIZEN API: Report Issue with Image
+app.post('/api/report', upload.single('image'), async (req, res) => {
   const { category, description } = req.body;
+  // imagePath will be stored as /uploads/filename.jpg in the DB
+  const imagePath = req.file ? `/uploads/${req.file.filename}` : null;
+
   try {
-    const newIssue = await pool.query(
-      'INSERT INTO issues (category, description, status) VALUES ($1, $2, $3) RETURNING *',
-      [category, description, 'Pending']
+    const result = await pool.query(
+      'INSERT INTO issues (category, description, status, department, image_path) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [category, description, 'Pending', 'Unassigned', imagePath]
     );
-    res.status(201).json(newIssue.rows[0]);
+    res.status(201).json(result.rows[0]);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error while reporting issue' });
+    console.error("Insert Error:", err.message);
+    res.status(500).json({ error: 'Database error reporting issue' });
   }
 });
 
-// GET Issues by Category (For the count numbers on cards)
-app.get('/api/category-counts', async (req, res) => {
+// ADMIN API: Fetch all issues
+app.get('/api/admin/all-issues', async (req, res) => {
   try {
-    const result = await pool.query('SELECT category, COUNT(*) FROM issues GROUP BY category');
+    const result = await pool.query('SELECT * FROM issues ORDER BY id DESC');
     res.json(result.rows);
   } catch (err) {
-    console.error(err.message);
-    res.status(500).json({ error: 'Server error while fetching category counts' });
+    res.status(500).json({ error: 'Database error fetching admin data' });
   }
 });
 
-// Route for the main dashboard
-app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'dashboard.html'));
+// ADMIN API: Assign Department
+app.put('/api/admin/assign', async (req, res) => {
+  const { id, department } = req.body;
+  try {
+    await pool.query('UPDATE issues SET department = $1 WHERE id = $2', [department, id]);
+    res.json({ message: "Successfully assigned to department" });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error during assignment' });
+  }
 });
 
+// DEPT API: Fetch tasks for specific department
+app.get('/api/dept/:name', async (req, res) => {
+  const { name } = req.params;
+  try {
+    const result = await pool.query('SELECT * FROM issues WHERE department = $1 ORDER BY id DESC', [name]);
+    res.json(result.rows);
+  } catch (err) {
+    res.status(500).json({ error: 'Database error fetching dept tasks' });
+  }
+});
+
+// DEPT API: Update status to Resolved
+app.put('/api/dept/status', async (req, res) => {
+  const { id, status } = req.body;
+  try {
+    await pool.query('UPDATE issues SET status = $1 WHERE id = $2', [status, id]);
+    res.json({ message: "Task status updated" });
+  } catch (err) {
+    res.status(500).json({ error: 'Database error updating task status' });
+  }
+} );
+
+// --- 6. SERVER START ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`CivicOne Server running at http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`CivicOne running at http://localhost:${PORT}`);
 });
 // om added
